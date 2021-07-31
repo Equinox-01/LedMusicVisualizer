@@ -1,55 +1,52 @@
 #include "FastLED.h"
 
 #define NUM_LEDS 300
+#define MICRO_SENSETIVITY_THRESHOLD 510
 #define LED_PIN 7
+#define MUTE_LEVEL 60
+
 #define SENSETIVITY A5
 #define MICRO_SENSOR A0
 
-#define PURPLE_RGB_THRESHOLD 90
-#define BLUE_RGB_THRESHOLD 80
-#define GREEN_RGB_THRESHOLD 70
-#define WHITE_RGB_THRESHOLD 60
-
 CRGB leds[NUM_LEDS];
-int sensorValue = 0;
-float sensitivityValue = 0;
 
 void setup() {
-  Serial.begin(9600);
   pinMode(MICRO_SENSOR, INPUT);
-  FastLED.addLeds<WS2811, LED_PIN, GRB>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
+  FastLED.addLeds<WS2811, LED_PIN, GRB>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
   FastLED.setBrightness(100);
-  pinMode(7, OUTPUT);
   pinMode(SENSETIVITY, INPUT);
   for (int i = 0; i < NUM_LEDS; i++ ) {
     leds[i] = CRGB::Black;
   }
 }
 void loop() {
-  sensorValue = analogRead(MICRO_SENSOR) - 510;
-  sensorValue = abs(sensorValue);
-  sensitivityValue = map(analogRead(SENSETIVITY), 0, 1024, 100, 0) / 100.0;
+  int sensorValue = abs(analogRead(MICRO_SENSOR) - MICRO_SENSETIVITY_THRESHOLD);
+  float sensitivityValue = map(analogRead(SENSETIVITY), 0, 1024, 100, 0) / 100.0;
+
   for (int i = NUM_LEDS - 2; i >= 0; i-- ) {
     leds[i+1] = leds[i];
   }
 
-  if (sensorValue / sensitivityValue > PURPLE_RGB_THRESHOLD) {
-    leds[0] = CRGB(111, 255, 0);
+  int color_level = sensorValue / sensitivityValue;
+  if (color_level > MUTE_LEVEL) {
+    leds[0] = NumberToRGBColor(color_level);
   }
-  else if(sensorValue / sensitivityValue > BLUE_RGB_THRESHOLD){
-    leds[0] = CRGB::Green;
+  else{
+    leds[0] = CRGB::Black;
   }
-  else if(sensorValue / sensitivityValue > GREEN_RGB_THRESHOLD){
-    leds[0] = CRGB::Blue;
-  }
-  else if(sensorValue / sensitivityValue > WHITE_RGB_THRESHOLD){
-    leds[0] = CRGB::White;
-  }
-  else
-  {
-     leds[0] = CRGB::Black;
-  }
-
   FastLED.show();
   delay(10);
+}
+
+CRGB NumberToRGBColor(int number){
+  number = map(number, 0, 250, 0, 65535);
+  int red = number >> 11;
+  int green = (number >> 5) & 63;
+  int blue = number & 31;
+
+  red = red * 255 / 31;
+  green = green * 255 / 63;
+  blue = blue * 255 / 31;
+  
+  return CRGB(red, green, blue);
 }
